@@ -111,8 +111,8 @@ class PjwtWithPkceStack(Stack):
             environment = {
                 "ClientId": self.node.try_get_context("idp_client_id"),
                 "DynamoDbStateTable": dynamodb_state_table.table_name,
-                "IdpAuthUri": self.node.try_get_context("idp_issuer_url") + self.node.try_get_context("idp_auth_path"),
-                "ProxyCallbackUri": f"{apigw_proxy_api.attr_api_endpoint}/{api_version}{callb_route}"
+                "IdpAuthUri": self.node.try_get_context("idp_auth_url"),
+                "ProxyCallbackUri": f"{self.node.try_get_context('sso_domain')}/{api_version}{callb_route}"
             },
             role = lambda_function_authorize_exec_role,
             log_retention = _logs.RetentionDays.FIVE_DAYS
@@ -150,7 +150,7 @@ class PjwtWithPkceStack(Stack):
             code=_lambda.Code.from_asset("./lambda/callback"),
             handler="callback_flow.handler",
             environment = {
-                "CognitoIdpResponseUri": f"https://{apigw_proxy_api.attr_api_id}.auth.{_aws.REGION}.amazoncognito.com/oauth2/idpresponse",
+                "CognitoIdpResponseUri": f"{self.node.try_get_context('cognito_domain')}/oauth2/idpresponse",
                 "DynamoDbCodeTable": dynamodb_code_table.table_name,
                 "DynamoDbStateTable": dynamodb_state_table.table_name
             },
@@ -199,8 +199,8 @@ class PjwtWithPkceStack(Stack):
                 "ClientSecret": self.node.try_get_context("idp_client_secret"),
                 "DynamoDbCodeTable": dynamodb_code_table.table_name,
                 "IdpIssuerUrl": self.node.try_get_context("idp_issuer_url"),
-                "IdpTokenPath": self.node.try_get_context("idp_token_path"),
-                "ResponseUri": f"{apigw_proxy_api.attr_api_endpoint}/{api_version}{callb_route}",
+                "IdpTokenUrl": self.node.try_get_context("idp_token_url"),
+                "ResponseUri": f"{self.node.try_get_context('sso_domain')}/{api_version}{callb_route}",
                 "Pkce": str(self.node.try_get_context("pkce")),
                 "Region": _aws.REGION,
                 "SecretsManagerPrivateKey": secretsmanager_private_key.secret_name
@@ -356,9 +356,9 @@ class PjwtWithPkceStack(Stack):
             attribute_request_method = _cognito.OidcAttributeRequestMethod.GET,
             endpoints = _cognito.OidcEndpoints(
                 authorization = apigw_proxy_route_auth_uri,
-                jwks_uri = idp_issuer_url + self.node.try_get_context("idp_keys_path"),
+                jwks_uri = self.node.try_get_context("idp_keys_url"),
                 token = apigw_proxy_route_token_uri,
-                user_info = idp_issuer_url + self.node.try_get_context("idp_attributes_path")
+                user_info = self.node.try_get_context("idp_attributes_url")
             ),
             name = self.node.try_get_context("idp_name"),
             scopes = self.node.try_get_context("idp_scopes").split()

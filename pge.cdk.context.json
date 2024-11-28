@@ -1,0 +1,20 @@
+{
+  "api_version": "v1",
+  "api_authn_route": "/authorize",
+  "api_callback_route": "/callback",
+  "api_token_route": "/token",
+  "idp_attributes_url": "https://login.windows.net/e84bb675-81b1-4f49-985b-3e2d77c6c94d/openid/userinfo",
+  "idp_auth_url": "https://login.windows.net/e84bb675-81b1-4f49-985b-3e2d77c6c94d/oauth2/authorize",
+  "idp_keys_url": "https://login.windows.net/common/discovery/keys",
+  "idp_token_url": "https://login.microsoftonline.com/e84bb675-81b1-4f49-985b-3e2d77c6c94d/oauth2/v2.0/token",
+  "idp_client_id": "845cba8a-7f54-4095-b33f-f34d93ec8e3e",
+  "idp_client_secret": "",
+  "idp_issuer_url": "https://login.microsoftonline.com/e84bb675-81b1-4f49-985b-3e2d77c6c94d/v2.0",
+  "idp_name": "PGE-OIDC",
+  "idp_scopes": "openid email profile",
+  "pkce": true,
+  "stack_name": "PgeSsoProxyStack",
+  "userpool_allowed_callback_url": "https://app.cloudfix.com/api/v3/auth/sso/72e31cdb-b933-45e7-a873-4fb387439051/",
+  "sso_domain": "https://pge.app.cloudfix.com",
+  "cognito_domain": "https://pge-sso.app.cloudfix.com"
+}

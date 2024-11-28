@@ -5,13 +5,9 @@ from botocore.exceptions import ClientError
 
 import base64
 import boto3
-import http.client
-import json
-import jwt
 import os
-import pprint
-import time
 import urllib.parse
+import requests
 
 
 """
@@ -75,7 +71,7 @@ def handler(event, context):
     param_dict = {}
     for item in param_list:
         key, value = item.split("=")
-        param_dict[key] = value
+        param_dict[key] = urllib.parse.unquote(value)
 
     print("+++ DECODED PARAMETER LIST +++")
     print(param_dict)
@@ -97,10 +93,9 @@ def handler(event, context):
     config = {}
     config["auth_code"] = param_dict["code"]
     config["client_id"] = param_dict["client_id"]
+    config["client_secret"] = param_dict["client_secret"]
     config["idp_issuer_url"] = os.environ.get("IdpIssuerUrl")
-    config["idp_token_path"] = os.environ.get("IdpTokenPath")
-    config["idp_token_endpoint"] = config["idp_issuer_url"] + config["idp_token_path"]
-    config["secret_name"] = os.environ.get("SecretsManagerPrivateKey")
+    config["idp_token_url"] = os.environ.get("IdpTokenUrl")
     config["original_response_uri"] = os.environ.get("ResponseUri")
 
     if pkce_toggle:
@@ -124,48 +119,18 @@ def handler(event, context):
         print("+++ CODE VERIFIER FOUND +++")
         print(code_verifier)
 
-    # Get private key from Secrets Manager
-    print("+++ RETRIEVING SECRET FROM SECRET MANAGER +++")
-    private_key = get_secret(config["secret_name"])
-    private_key_dict = json.loads(private_key)
-    private_key = jwt.jwk_from_dict(private_key_dict)
-    print("+++ KEY RETRIEVED +++")
-
-    print("+++ SIGNING TOKEN +++")
-    # Create the private key jwt
-    instance = jwt.JWT()
-    private_key_jwt = instance.encode({
-        "iss": config["client_id"],
-        "sub": config["client_id"],
-        "aud": config["idp_token_endpoint"],
-        "iat": int(time.time()),
-        "exp": int(time.time()) + 300
-    },
-        private_key,
-        alg='RS256',
-        optional_headers = {"kid": private_key_dict["kid"]}
-    )
-
-    print("+++ PRIVATE KEY JWT +++")
-    print(private_key_jwt)
+   
 
     # Add client_assertion to the query string params
-    param_dict["client_assertion"] = private_key_jwt
     param_dict["grant_type"] = "authorization_code"
-    param_dict["client_assertion_type"] = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
     param_dict["redirect_uri"] = config["original_response_uri"]
 
     # Add the api gw url from the authorize request and code verifier when using PKCE
     if pkce_toggle:
         param_dict["code_verifier"] = code_verifier
 
-    # Removing because it is not needed
-    param_dict.pop("client_secret")
 
     # Make the token request
-    clean_url = config["idp_issuer_url"][8:]
-    conn = http.client.HTTPSConnection(clean_url)
-
     payload = urllib.parse.urlencode(param_dict)
     print("+++ PAYLOAD +++")
     print(payload)
@@ -173,15 +138,17 @@ def handler(event, context):
     headers = {
         "Content-Type": "application/x-www-form-urlencoded"
     }
-
-    conn.request('POST', f'{config["idp_token_path"]}', payload, headers)
-    res = conn.getresponse()
+    response = requests.post(
+        url=config["idp_token_url"],
+        data=payload,
+        headers=headers,
+    )
 
     print("+++ IDP RESPONSE +++")
-    print(f"Status: {res.status}, Reason {res.reason}")
+    print(f"Status: {response.status_code}, Reason: {response.reason}")
 
     # Return IdP response to Cognito
-    data = res.read().decode("utf-8")
+    data = response.content.decode('utf-8')
 
     print(data)
 
